@@ -30,7 +30,7 @@
 #endif
 
 // Buffers for SPI communications (16 words = 32 bytes)
-volatile uint16_t spiBufferRX[16], spiBufferTX[16];
+volatile uint16_t spiBufferRX[16];
 // Flag bits for the FMS
 volatile uint16_t svFlags;
 // Last flag bits for the FMS
@@ -44,126 +44,25 @@ static uint8_t svPacket;
 // Team name to report when asked for configuration
 char svTeamName[8];
 
-// Supervisor transfer complete, check the flags sent
-static INLINE void _svComplete() {
-	uint8_t temp, i; uint16_t flags = 0;
-	// Start checking the configuration bits
-	if (SV_IN->key == SV_MAGIC) {
-		temp = SV_IN->inMode;
-		if (temp & 2) {
-			// Configuration (team name?)
-			if (temp & 1) {
-				// Default data
-				SV_OUT->mode = 3;
-				SV_OUT->outMode = 0;
-				svSetAllData(127);
-			} else {
-				// Team name
-				SV_OUT->mode = 2;
-				SV_OUT->outMode = 85;
-				for (i = 0; i < 8; i++)
-					SV_OUT->data[i] = svTeamName[i];
-			}
-		} else if (temp & 4)
-			// Ready for mode set
-			SV_OUT->mode = 8;
-		else if (temp == 8) {
-			// Mode set
-			SV_OUT->mode = 8;
-			flags = SV_CONNECTED;
-			// Check the game state
-			temp = SV_IN->gameStatus;
-			if (temp & (uint8_t)0x08) {
-				// FMS is connected
-				flags |= SV_FMS;
-				if (temp & (uint8_t)0x40)
-					// Autonomous mode
-					flags |= SV_AUTONOMOUS;
-				if (!(temp & (uint8_t)0x80))
-					// Enabled
-					flags |= SV_ENABLED;
-			}
-			if (flags != svLastFlags) {
-				// Something changed! Wake up the daemon to take action
-				svLastFlags = flags;
-				invWakeup();
-			}
-			// Backup battery fix
-			if (SV_IN->mainBattery <= 32) {
-				if (svPowerFlags < 64) svPowerFlags++;
-			} else {
-				if (svPowerFlags > 0) svPowerFlags--;
-			}
-		}
-		// Update the supervisor flags
-		svFlags = flags;
-	}
-}
-
-// _spiDoNext - Reads an SPI byte and inserts delay if needed
-static void _spiDoNext() {
-	uint8_t idx = svIndex;
-	// Receive buffer full, read data
-	spiBufferRX[idx++] = SPI1->DR;
-	svIndex = idx;
-	// Negate NSS
-	ioSetOutput(GPIOE, 0, 1);
-	if (idx < 16) {
-		if (idx & 3) {
-			// Setup/hold time of 8? us
-			_highResSchedule(0, 8);
-		} else {
-			// Setup/hold time of 73? us
-			_highResSchedule(0, 73);
-		}
-	} else {
-		// All done
-		_svComplete();
-		svIndex = 0;
-	}
-}
-
-// _svNextByte - Helper to send off the next byte for SPI
-void _svNextByte() {
-	uint8_t idx = svIndex;
-	if (idx == 4)
-		ioSetOutput(GPIOA, 11, 0);
-	// Assert SS (GPIOE 0) and store next value
-	ioSetOutput(GPIOE, 0, 0);
-	SPI1->DR = spiBufferTX[idx];
-}
-
 // standaloneModeEnable - enable standalone operation
 void standaloneModeEnable() {
 	// set flag in outgoing SPI buffer to enable standlone mode
-	SV_OUT->flags |= 1;
+	EmuComp_enableStandalone();
 }
 
 // svInit - Initialize supervisor communications
 void svInit() {
+	EmuComp_init();
+
 	uint8_t i;
-	// Wait for the supervisor to come up
-	ioSetOutput(GPIOE, 0, 1);
+
 	svPacket = (uint8_t)0x00;
-	// Read 8 bytes of garbage data (?)
-	for (i = 8; i; i--)
-		(void)SPI1->DR;
-	// When the requisite port E pins [3 and 4] go low, master is ready for SPI data
-	while (ioGetInput(GPIOE, 3) || ioGetInput(GPIOE, 4)) __sleep();
 	// Reset all flags
 	svFlags = (uint32_t)0x00000000;
 	svLastFlags = (uint32_t)0x00000000;
 	svPowerFlags = (uint16_t)0x0000;
 	svIndex = (uint8_t)0x00;
-	// Initialize the array
-	for (i = 1; i < 16; i++)
-		spiBufferTX[i] = (uint16_t)0x0000;
-	SV_OUT->key = SV_MAGIC;
-	SV_OUT->mode = 2;
-	SV_OUT->flags = 0;
-	SV_OUT->version = 1;
-	// Load in empty motor values
-	svSetAllData((uint8_t)0x7F);
+
 	// Load in neutral joystick values
 	for (i = 0; i < 6; i++) {
 		SV_IN->joystick[0].axis[i] = (uint8_t)0x7F;
@@ -183,8 +82,6 @@ void svInit() {
 	svTeamName[5] = ' ';
 	svTeamName[6] = ' ';
 	svTeamName[7] = ' ';
-	// Now we are ready to enable RXNE interrupt
-	SPI1->CR2 = SPI_CR2_RXNEIE;
 }
 
 // svSynchronize - Waits for the supervisor to synchronize, then prints the startup message
@@ -200,26 +97,37 @@ void svSynchronize() {
 
 // ISR_SPI1 - Interrupt-driven routine to handle master communication
 void ISR_SPI1() {
-	if (SPI1->SR & SPI_SR_RXNE)
-		_spiDoNext();
-}
+	if (EMULATOR->R1 == 0) {
+		svFlags |= SV_CONNECTED;
+	} else if (EMULATOR->R1 == 1) {
+		uint8_t temp; uint16_t flags = 0;
+		EmuComp_setName(svTeamName);
+		EmuComp_getStatus((void*)spiBufferRX);
 
-// Updates the SPI master on each tick
-void svStartTransfer() {
-	// Check power level to fix backup battery issues
-	if (svPowerFlags > 32)
-		svSetAllData((uint8_t)0x7F);
-	if (svIndex == 0) {
-		// Packet number goes in the last byte (assuming that overflow is fine here)
-		SV_OUT->packetNum = svPacket++;
-		if (SPI1->SR & SPI_SR_TXE) {
-			// Raise GPIOA 11 high
-			ioSetOutput(GPIOA, 11, 1);
-			// Assert SS
-			ioSetOutput(GPIOE, 0, 0);
-			// Start by storing first data value
-			SPI1->DR = spiBufferTX[0];
+		temp = SV_IN->gameStatus;
+		if (temp & (uint8_t)0x08) {
+			// FMS is connected
+			flags |= SV_FMS;
+			if (temp & (uint8_t)0x40)
+				// Autonomous mode
+				flags |= SV_AUTONOMOUS;
+			if (!(temp & (uint8_t)0x80))
+				// Enabled
+				flags |= SV_ENABLED;
 		}
-	} else
-		_spiDoNext();
+		if (flags != svLastFlags) {
+			// Something changed! Wake up the daemon to take action
+			svLastFlags = flags;
+			invWakeup();
+		}
+
+		// Backup battery fix
+		if (SV_IN->mainBattery <= 32) {
+			if (svPowerFlags < 64) svPowerFlags++;
+		} else {
+			if (svPowerFlags > 0) svPowerFlags--;
+		}
+
+		svFlags = flags;
+	}
 }

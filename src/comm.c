@@ -18,6 +18,7 @@
 #include <periph.h>
 #include <semphr.h>
 #include <taskpriv.h>
+#include <emulator.h>
 
 // LCD backlight on
 #define LCD_BACKLIGHT ((uint8_t)0x02)
@@ -169,19 +170,7 @@ char* fgets(char *str, int num, PROS_FILE *stream) {
 int fputc(int value, PROS_FILE *stream) {
 	uint32_t snew = (uint32_t)stream - 1;
 	if (snew < 3) {
-		SerialPort_TypeDef *ser = &usart[snew];
-		_waitForSpace(ser);
-		// Jam a byte onto the head
-		_queueByte(&(ser->tx), (char)value);
-		if (snew == 0)
-			// Enable USART2 TXE interrupts
-			USART2->CR1 |= USART_CR1_TXEIE;
-		else if (snew == 1)
-			// Enable USART3 TXE interrupts
-			USART3->CR1 |= USART_CR1_TXEIE;
-		else if (snew == 2)
-			// Enable USART1 TXE interrupts
-			USART1->CR1 |= USART_CR1_TXEIE;
+		EmuSerial_putc(snew, value);
 	}
 #ifndef NO_FILESYSTEM
 	else
@@ -229,31 +218,7 @@ int putchar(int value) {
 }
 
 // ISR_USART1 - Buffered character I/O handler for debug communications
-void ISR_USART1() {
-	char value;
-	bool cs = false;
-	SerialPort_TypeDef *ser = &usart[2];
-	if (USART1->SR & USART_SR_RXNE) {
-		// Read to clear the flag
-		value = (char)USART1->DR;
-		// Buffer it up, if it's not full to the brim
-		if (!_isBufferFull(&(ser->rx)))
-			_queueByte(&(ser->rx), value);
-		// Notify any receivers
-		semaphoreGiveISR(ser->readLock, &cs);
-	}
-	if (USART1->SR & USART_SR_TXE) {
-		if (_isBufferEmpty(&(ser->tx)))
-			// Nothing to send, disable interrupt
-			USART1->CR1 &= ~USART_CR1_TXEIE;
-		else {
-			value = _pullByte(&(ser->tx));
-			USART1->DR = value;
-		}
-	}
-	if (cs)
-		_taskYield();
-}
+void ISR_USART1() {} // Hardware not attached
 
 // lcdButtonProcess - Processes the VEX LCD buttons
 static void lcdButtonProcess(char value, uint32_t index) {
@@ -280,66 +245,10 @@ static void lcdButtonProcess(char value, uint32_t index) {
 }
 
 // ISR_USART2 - Buffered character I/O handler for UART port 1
-void ISR_USART2() {
-	char value;
-	bool cs = false;
-	SerialPort_TypeDef *ser = &usart[0];
-	if (USART2->SR & USART_SR_RXNE) {
-		// Read to clear the flag
-		value = (char)USART2->DR;
-		if (lcd[0].flags & LCD_ACTIVE)
-			lcdButtonProcess(value, 0);
-		else {
-			// Buffer it up, if it's not full to the brim
-			if (!_isBufferFull(&(ser->rx)))
-				_queueByte(&(ser->rx), value);
-			// Notify any receivers
-			semaphoreGiveISR(ser->readLock, &cs);
-		}
-	}
-	if (USART2->SR & USART_SR_TXE) {
-		if (_isBufferEmpty(&(ser->tx)))
-			// Nothing to send, disable interrupt
-			USART2->CR1 &= ~USART_CR1_TXEIE;
-		else {
-			value = _pullByte(&(ser->tx));
-			USART2->DR = value;
-		}
-	}
-	if (cs)
-		_taskYield();
-}
+void ISR_USART2() {} // Hardware not attached
 
 // ISR_USART3 - Buffered character I/O handler for UART port 2
-void ISR_USART3() {
-	char value;
-	bool cs = false;
-	SerialPort_TypeDef *ser = &usart[1];
-	if (USART3->SR & USART_SR_RXNE) {
-		// Read to clear the flag
-		value = (char)USART3->DR;
-		if (lcd[1].flags & LCD_ACTIVE)
-			lcdButtonProcess(value, 1);
-		else {
-			// Buffer it up, if it's not full to the brim
-			if (!_isBufferFull(&(ser->rx)))
-				_queueByte(&(ser->rx), value);
-			// Notify any receivers
-			semaphoreGiveISR(ser->readLock, &cs);
-		}
-	}
-	if (USART3->SR & USART_SR_TXE) {
-		if (_isBufferEmpty(&(ser->tx)))
-			// Nothing to send, disable interrupt
-			USART3->CR1 &= ~USART_CR1_TXEIE;
-		else {
-			value = _pullByte(&(ser->tx));
-			USART3->DR = value;
-		}
-	}
-	if (cs)
-		_taskYield();
-}
+void ISR_USART3() {} // Hardware not attached
 
 // lcdClear - Clears the screen
 void lcdClear(PROS_FILE *lcdPort) {
@@ -511,44 +420,17 @@ void usartFlushBuffers() {
 // usartInit - Initialize the specified USART interface with the given connection parameters
 // The interface argument can be 1 or 2 to specify UART1 and UART2 respectively
 void usartInit(PROS_FILE *port, unsigned int baud, unsigned int flags) {
-	// Determine correct USART
-	USART_TypeDef *base;
-	if (port == uart1)
-		base = USART2;
-	else if (port == uart2)
-		base = USART3;
-	else
+	if (port != uart1 && port != uart2)
 		// Invalid interface
 		return;
 	_enterCritical();
-	{
-		base->CR1 = 0;
-		// Flush buffers
-		if (port == uart1) {
-			usart[0].tx.tail = usart[0].tx.head;
-			usart[0].rx.tail = usart[0].rx.head;
-		} else {
-			usart[1].tx.tail = usart[1].tx.head;
-			usart[1].rx.tail = usart[1].rx.head;
-		}
-		// Configure base registers
-		base->CR2 = flags & (USART_CR2_STOP0 | USART_CR2_STOP1);
-		// Turn on USART
-		base->CR1 = USART_CR1_RXNEIE | USART_CR1_RE | USART_CR1_TE | USART_CR1_UE |
-			(flags & (USART_CR1_PCE | USART_CR1_PS | USART_CR1_M));
-		base->CR3 = (uint16_t)0;
-		// Set baud rate
-		uint32_t brr = 225000000 / baud, mod = brr / 100, fracDiv = brr - (100 * mod);
-		base->BRR = (uint16_t)(mod << 4) | (uint16_t)((((fracDiv << 4) + 50) / 100) & 0xF);
-	}
+	EmuSerial_init(port == uart1 ? 1 : 2, baud, flags);
 	_exitCritical();
 }
 
 // usartShutdown - Disable the specified USART interface
 void usartShutdown(PROS_FILE *usart) {
 	// Disable transmitter, receiver, clock, and interrupts
-	if (usart == uart1)
-		USART2->CR1 = (uint16_t)0;
-	else if (usart == uart2)
-		USART3->CR1 = (uint16_t)0;
+	if (usart != uart1 && usart != uart2) return;
+	EmuSerial_shutdown((int) usart);
 }

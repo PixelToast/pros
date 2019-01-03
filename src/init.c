@@ -8,6 +8,7 @@
  */
 
 #include "main.h"
+#include "emulator.h"
 
 /*
  * Runs pre-initialization code. This function will be started in kernel mode one time while the
@@ -18,6 +19,7 @@
  * configure a UART port (usartOpen()) but cannot set up an LCD (lcdInit()).
  */
 void initializeIO() {
+  printf("initializeIO started\n");
 }
 
 /*
@@ -34,4 +36,5 @@ void initializeIO() {
  * can be implemented in this task if desired.
  */
 void initialize() {
+  printf("initialize started\n");
 }

@@ -27,22 +27,14 @@ extern "C" {
 typedef struct {
 	// Joystick axes
 	volatile uint8_t axis[6];
-	// Appears to be always 0x7F
-	volatile uint8_t RESERVED0;
 	// Joystick button #5 and 6
 	volatile uint8_t button56;
 	// Joystick button #7 and 8
 	volatile uint8_t button78;
-	// Appears to be always zero
-	volatile uint8_t RESERVED1[3];
-} Joystick_TypeDef;
+} __attribute__((packed)) Joystick_TypeDef;
 
 // Structure representing the 32 bytes of data received from the supervisor
 typedef struct {
-	// Operation key, should be C917 during normal operation
-	volatile uint16_t key;
-	// Determines what type of information should be sent
-	volatile uint8_t inMode;
 	// Game status
 	volatile uint8_t gameStatus;
 	// Main battery "voltage"
@@ -51,40 +43,16 @@ typedef struct {
 	volatile uint8_t backupBattery;
 	// Joysticks
 	volatile Joystick_TypeDef joystick[2];
-	// Version
-	volatile uint8_t version;
-	volatile uint8_t RESERVED;
-} Supervisor_RecvTypeDef;
-
-// Structure representing the 32 bytes of data sent to the supervisor
-typedef struct {
-	// Should always be the magic number 0xC917
-	volatile uint16_t key;
-	// Response mode to the input mode
-	volatile uint8_t mode;
-	// Additional flags (brake mode!?)
-	volatile uint8_t flags;
-	volatile uint8_t RESERVED0;
-	// Unsure
-	volatile uint8_t outMode;
-	// Data values (motor PWM or team name)
-	volatile uint8_t data[8];
-	volatile uint32_t RESERVED1[4];
-	// Version
-	volatile uint8_t version;
-	// Packet number
-	volatile uint8_t packetNum;
-} Supervisor_TransTypeDef;
+} __attribute__((packed)) Supervisor_RecvTypeDef;
 
 // Supervisor flags
 extern volatile uint16_t svFlags;
 // Buffers for SPI communications (16 words = 32 bytes)
-extern volatile uint16_t spiBufferRX[16], spiBufferTX[16];
+extern volatile uint16_t spiBufferRX[16];
 // Team name to report when asked for configuration
 extern char svTeamName[8];
 // Alias buffers to structures for easy lookup
 #define SV_IN ((Supervisor_RecvTypeDef*)(&spiBufferRX))
-#define SV_OUT ((Supervisor_TransTypeDef*)(&spiBufferTX))
 
 // Autonomous flag bit
 #define SV_AUTONOMOUS ((uint16_t)0x0004)
@@ -94,19 +62,6 @@ extern char svTeamName[8];
 #define SV_ENABLED ((uint16_t)0x0002)
 // FMS enabled bit
 #define SV_FMS ((uint16_t)0x0008)
-
-// svSetAllData - Loads data into all eight output registers to be sent to the supervisor
-static INLINE void svSetAllData(uint8_t value) {
-	uint32_t i;
-	for (i = 0; i < 8; i++)
-		SV_OUT->data[i] = value;
-}
-
-// svGetOutputData - Reads data from a specified output register that would be sent to the
-// supervisor; intended for motorGet() call support
-static INLINE uint8_t svGetOutputData(uint8_t index) {
-	return SV_OUT->data[index];
-}
 
 // svGetBackupBattery - Gets the backup battery voltage in millivolts, or 0 if not connected
 static INLINE uint32_t svGetBackupBattery() {
@@ -196,11 +151,6 @@ static INLINE uint8_t svIsOnline() {
 	return (svFlags & SV_FMS) >> 3;
 }
 
-// svSetData - Loads data into a specified output register to be sent to the supervisor
-static INLINE void svSetData(uint8_t index, uint8_t value) {
-	SV_OUT->data[index] = value;
-}
-
 // svSetTeamName - Changes the team name reported to the supervisor
 static INLINE void svSetTeamName(const char *name) {
 	char c; uint8_t i;
@@ -219,8 +169,6 @@ static INLINE void svSetTeamName(const char *name) {
 void svInit();
 // svSetAllData - Loads data into all eight output registers to be sent to the supervisor
 void svSetAllData(uint8_t value);
-// svStartTransfer - Begins a supervisor transfer
-void svStartTransfer();
 // svSynchronize - Waits for the supervisor to synchronize, then reads the game status bits
 void svSynchronize();
 

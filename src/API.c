@@ -16,6 +16,7 @@
 #include <periph.h>
 #include <supervisor.h>
 #include <task.h>
+#include <emulator.h>
 
 // Structure for helping with taskRunLoop()
 typedef struct {
@@ -126,7 +127,8 @@ void delayMicroseconds(const unsigned long time) {
 bool digitalRead(unsigned char pin) {
 	if (pin >= BOARD_NR_GPIO_PINS)
 		return 0;
-	return ioGetInput((GPIO_TypeDef*)_pinLookupTable[pin], (uint8_t)_pinIndexTable[pin]);
+
+	return EmuGPIO_GetInput(pin);
 }
 
 // digitalWrite - Sets the digital value (1 or 0) of a pin configured as a digital output
@@ -135,7 +137,7 @@ void digitalWrite(unsigned char pin, bool value) {
 	// is needed to set initial solenoid states in initializeIO() when enabled/disabled is
 	// undefined.
 	if (pin < BOARD_NR_GPIO_PINS)
-		ioSetOutput((GPIO_TypeDef*)_pinLookupTable[pin], (uint8_t)_pinIndexTable[pin], value);
+		EmuGPIO_SetOutput(pin, value);
 }
 
 // isAutonomous - Checks to see if the system is in autonomous mode
@@ -223,7 +225,7 @@ void motorStopAll() {
 // pinMode - Configures the pin as an input or output with a variety of settings
 void pinMode(unsigned char pin, unsigned char mode) {
 	if (pin < BOARD_NR_GPIO_PINS)
-		ioSetDirection((GPIO_TypeDef*)_pinLookupTable[pin], (uint8_t)_pinIndexTable[pin], mode);
+		EmuGPIO_SetDir(pin, mode);
 }
 
 // powerLevelBackup - Get backup battery voltage in millivolts, or 0 if not connected

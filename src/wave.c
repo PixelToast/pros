@@ -122,11 +122,6 @@ void speakerInit() {
 	waveNeeded = semaphoreCreate();
 	semaphoreTake(waveNeeded, 0UL);
 	speakerStop();
-	// Set up DMA location and count
-	DMA2_Channel3->CMAR = (uint32_t)(&waveOutput[0]);
-	DMA2_Channel3->CNDTR = (uint32_t)WAVE_BUFFER_SIZE;
-	// Turn on DMA
-	DMA2_Channel3->CCR |= DMA_CCR_EN;
 }
 
 // speakerParseNumber - Helper for speakerPlayArray
@@ -291,7 +286,6 @@ void speakerPlayArray(const char * * rttl) {
 	}
 	// Start the timers of war
 	TIM6->EGR = TIM_EGR_UG;
-	DMA2->IFCR = DMA_IFCR_CGIF3;
 	TIM6->CR1 |= TIM_CR1_CEN;
 	do {
 		uint16_t wcount;
@@ -334,60 +328,12 @@ void speakerShutdown() {
 	semaphoreDelete(waveNeeded);
 	// Turn off the DMA and timer
 	TIM6->CR1 &= ~TIM_CR1_CEN;
-	DMA2_Channel3->CCR &= ~DMA_CCR_EN;
 	// Wait for the accesses to flush
 	__dsb();
 	// Clear DAC back to default (0), may cause click and pop?
-	DAC->DHR12R1 = (uint32_t)0;
 }
 
 // ISR_DMA2_Channel3 - "Transfer complete" ISR that reloads the data array with next samples
 // Also fires halfway through to load the beginning half (so that any latency will avoid noise
 // at the update frequency)
-IRQ ISR_DMA2_Channel3() {
-	register int32_t out;
-	register uint16_t t0, t1, s0, s1, t2, s2;
-	uint16_t *w;
-	// Shut off alarm clock
-	uint32_t flags = DMA2->ISR;
-	DMA2->IFCR = DMA_IFCR_CGIF3;
-	// Correct location
-	if (flags & DMA_ISR_TCIF3)
-		w = &waveOutput[WAVE_BUFFER_SIZE >> 1];
-	else
-		w = &waveOutput[0];
-	t0 = wave[0].sampleTime;
-	s0 = wave[0].sample;
-	t1 = wave[1].sampleTime;
-	s1 = wave[1].sample;
-	t2 = wave[2].sampleTime;
-	s2 = wave[2].sample;
-	for (uint32_t i = (WAVE_BUFFER_SIZE >> 1); i; i--) {
-		// WAVE CHANNEL 0
-		// Overflow is acceptable here
-		t0 += s0;
-		// Get sine index by LSRing by 9
-		out = (int32_t)SINE_WAVE[t0 >> 9];
-		// WAVE CHANNEL 1
-		t1 += s1;
-		out += (int32_t)SINE_WAVE[t1 >> 9];
-		// WAVE CHANNEL 2
-		t2 += s2;
-		out += (int32_t)SINE_WAVE[t2 >> 9];
-		// We have a total of 14 bits (13+13) to pigeonhole into 10, sign bits are erased
-		*w++ = (uint16_t)(((out + 4) >> 3) + WAVE_DC_OFFSET);
-	}
-	// Write back
-	wave[0].sampleTime = t0;
-	wave[1].sampleTime = t1;
-	wave[2].sampleTime = t2;
-	if (flags & DMA_ISR_TCIF3) {
-		wave[0].countdown--;
-		wave[1].countdown--;
-		wave[2].countdown--;
-		// Give control to whichever task is updating sound
-		bool cs = false;
-		semaphoreGiveISR(waveNeeded, &cs);
-		if (cs) _taskYield();
-	}
-}
+IRQ ISR_DMA2_Channel3() {}

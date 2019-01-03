@@ -272,42 +272,6 @@ typedef struct {
 	__IO uint32_t PR;
 } EXTI_TypeDef;
 
-// FLASH memory register access structure
-typedef struct {
-	__IO uint32_t ACR;
-	// Key register
-	__IO uint32_t KEYR;
-	// Optional key register
-	__IO uint32_t OPTKEYR;
-	// Status register
-	__IO uint32_t SR;
-	// Configuration register
-	__IO uint32_t CR;
-	__IO uint32_t AR;
-	__IO uint32_t RESERVED;
-	__IO uint32_t OBR;
-	// Write protection register
-	__IO uint32_t WRPR;
-} FLASH_TypeDef;
-
-// GPIO register access structure
-typedef struct {
-	// Configuration register low
-	__IO uint32_t CRL;
-	// Configuration register high
-	__IO uint32_t CRH;
-	// Input data register
-	__IO uint32_t IDR;
-	// Output data register
-	__IO uint32_t ODR;
-	// Bit set register
-	__IO uint32_t BSRR;
-	// Bit reset register
-	__IO uint32_t BRR;
-	// Configuration lock register
-	__IO uint32_t LCKR;
-} GPIO_TypeDef;
-
 // Alternate I/O pin mapping register access structure
 typedef struct {
 	// Event control register
@@ -627,39 +591,6 @@ typedef struct {
 // Timer #7
 #define TIM7_BASE (APB1PERIPH_BASE + 0x1400)
 #define TIM7 ((TIM_TypeDef*)TIM7_BASE)
-// Window watchdog
-#define WWDG_BASE (APB1PERIPH_BASE + 0x2C00)
-#define WWDG ((WWDG_TypeDef*)WWDG_BASE)
-// Independent watchdog
-#define IWDG_BASE (APB1PERIPH_BASE + 0x3000)
-#define IWDG ((IWDG_TypeDef*)IWDG_BASE)
-// SPI #2
-#define SPI2_BASE (APB1PERIPH_BASE + 0x3800)
-#define SPI2 ((SPI_TypeDef*)SPI2_BASE)
-// SPI #3
-#define SPI3_BASE (APB1PERIPH_BASE + 0x3C00)
-#define SPI3 ((SPI_TypeDef*)SPI3_BASE)
-// USART #2
-#define USART2_BASE (APB1PERIPH_BASE + 0x4400)
-#define USART2 ((USART_TypeDef*)USART2_BASE)
-// USART #3
-#define USART3_BASE (APB1PERIPH_BASE + 0x4800)
-#define USART3 ((USART_TypeDef*)USART3_BASE)
-// UART #4
-#define UART4_BASE (APB1PERIPH_BASE + 0x4C00)
-#define UART4 ((USART_TypeDef*)UART4_BASE)
-// UART #5
-#define UART5_BASE (APB1PERIPH_BASE + 0x5000)
-#define UART5 ((USART_TypeDef*)UART5_BASE)
-// I2C #1
-#define I2C1_BASE (APB1PERIPH_BASE + 0x5400)
-#define I2C1 ((I2C_TypeDef*)I2C1_BASE)
-// I2C #2
-#define I2C2_BASE (APB1PERIPH_BASE + 0x5800)
-#define I2C2 ((I2C_TypeDef*)I2C2_BASE)
-// DAC
-#define DAC_BASE (APB1PERIPH_BASE + 0x7400)
-#define DAC ((DAC_TypeDef*)DAC_BASE)
 
 // Peripherals on APB2
 // Alternate function I/O
@@ -668,39 +599,9 @@ typedef struct {
 // External interrupt management
 #define EXTI_BASE (APB2PERIPH_BASE + 0x0400)
 #define EXTI ((EXTI_TypeDef*)EXTI_BASE)
-// GPIO port A
-#define GPIOA_BASE (APB2PERIPH_BASE + 0x0800)
-#define GPIOA ((GPIO_TypeDef*)GPIOA_BASE)
-// GPIO port B
-#define GPIOB_BASE (APB2PERIPH_BASE + 0x0C00)
-#define GPIOB ((GPIO_TypeDef*)GPIOB_BASE)
-// GPIO port C
-#define GPIOC_BASE (APB2PERIPH_BASE + 0x1000)
-#define GPIOC ((GPIO_TypeDef*)GPIOC_BASE)
-// GPIO port D
-#define GPIOD_BASE (APB2PERIPH_BASE + 0x1400)
-#define GPIOD ((GPIO_TypeDef*)GPIOD_BASE)
-// GPIO port E
-#define GPIOE_BASE (APB2PERIPH_BASE + 0x1800)
-#define GPIOE ((GPIO_TypeDef*)GPIOE_BASE)
-// GPIO port F
-#define GPIOF_BASE (APB2PERIPH_BASE + 0x1C00)
-#define GPIOF ((GPIO_TypeDef*)GPIOF_BASE)
-// GPIO port G
-#define GPIOG_BASE (APB2PERIPH_BASE + 0x2000)
-#define GPIOG ((GPIO_TypeDef*)GPIOG_BASE)
-// ADC #1
-#define ADC1_BASE (APB2PERIPH_BASE + 0x2400)
-#define ADC1 ((ADC_TypeDef*)ADC1_BASE)
-// ADC #2
-#define ADC2_BASE (APB2PERIPH_BASE + 0x2800)
-#define ADC2 ((ADC_TypeDef*)ADC2_BASE)
 // Timer #1
 #define TIM1_BASE (APB2PERIPH_BASE + 0x2C00)
 #define TIM1 ((TIM_TypeDef*)TIM1_BASE)
-// SPI #1
-#define SPI1_BASE (APB2PERIPH_BASE + 0x3000)
-#define SPI1 ((SPI_TypeDef*)SPI1_BASE)
 // Timer #8
 #define TIM8_BASE (APB2PERIPH_BASE + 0x3400)
 #define TIM8 ((TIM_TypeDef*)TIM8_BASE)
@@ -714,36 +615,6 @@ typedef struct {
 // Reset and clock control
 #define RCC_BASE (AHBPERIPH_BASE + 0x1000)
 #define RCC ((RCC_TypeDef*)RCC_BASE)
-// DMA #1
-#define DMA1_BASE (AHBPERIPH_BASE + 0x0000)
-#define DMA1 ((DMA_TypeDef*)DMA1_BASE)
-#define DMA1_Channel1_BASE (AHBPERIPH_BASE + 0x0008)
-#define DMA1_Channel1 ((DMA_Channel_TypeDef*)DMA1_Channel1_BASE)
-#define DMA1_Channel2_BASE (AHBPERIPH_BASE + 0x001C)
-#define DMA1_Channel2 ((DMA_Channel_TypeDef*)DMA1_Channel2_BASE)
-#define DMA1_Channel3_BASE (AHBPERIPH_BASE + 0x0030)
-#define DMA1_Channel3 ((DMA_Channel_TypeDef*)DMA1_Channel3_BASE)
-#define DMA1_Channel4_BASE (AHBPERIPH_BASE + 0x0044)
-#define DMA1_Channel4 ((DMA_Channel_TypeDef*)DMA1_Channel4_BASE)
-#define DMA1_Channel5_BASE (AHBPERIPH_BASE + 0x0058)
-#define DMA1_Channel5 ((DMA_Channel_TypeDef*)DMA1_Channel5_BASE)
-#define DMA1_Channel6_BASE (AHBPERIPH_BASE + 0x006C)
-#define DMA1_Channel6 ((DMA_Channel_TypeDef*)DMA1_Channel6_BASE)
-#define DMA1_Channel7_BASE (AHBPERIPH_BASE + 0x0080)
-#define DMA1_Channel7 ((DMA_Channel_TypeDef*)DMA1_Channel7_BASE)
-// DMA #2
-#define DMA2_BASE (AHBPERIPH_BASE + 0x0400)
-#define DMA2 ((DMA_TypeDef*)DMA2_BASE)
-#define DMA2_Channel1_BASE (AHBPERIPH_BASE + 0x0408)
-#define DMA2_Channel1 ((DMA_Channel_TypeDef*)DMA2_Channel1_BASE)
-#define DMA2_Channel2_BASE (AHBPERIPH_BASE + 0x041C)
-#define DMA2_Channel2 ((DMA_Channel_TypeDef*)DMA2_Channel2_BASE)
-#define DMA2_Channel3_BASE (AHBPERIPH_BASE + 0x0430)
-#define DMA2_Channel3 ((DMA_Channel_TypeDef*)DMA2_Channel3_BASE)
-#define DMA2_Channel4_BASE (AHBPERIPH_BASE + 0x0444)
-#define DMA2_Channel4 ((DMA_Channel_TypeDef*)DMA2_Channel4_BASE)
-#define DMA2_Channel5_BASE (AHBPERIPH_BASE + 0x0458)
-#define DMA2_Channel5 ((DMA_Channel_TypeDef*)DMA2_Channel5_BASE)
 // SysTick
 #define SysTick_BASE (SCS_BASE + 0x0010)
 #define SysTick ((SysTick_TypeDef*)SysTick_BASE)
@@ -753,30 +624,6 @@ typedef struct {
 // System Control Block
 #define SCB_BASE (SCS_BASE + 0x0D00)
 #define SCB ((SCB_TypeDef*)SCB_BASE)
-// Flash memory
-#define FLASH_R_BASE (AHBPERIPH_BASE + 0x2000)
-#define FLASH ((FLASH_TypeDef*)FLASH_R_BASE)
-
-// ADC defines
-// ADC scan mode enable
-#define ADC_CR1_SCAN ((uint32_t)0x00000100)
-
-// ADC on/off flag
-#define ADC_CR2_ADON ((uint32_t)0x00000001)
-// ADC continuous conversion enable/disable
-#define ADC_CR2_CONT ((uint32_t)0x00000002)
-// ADC calibration in progress?
-#define ADC_CR2_CAL ((uint32_t)0x00000004)
-// Reset ADC calibration
-#define ADC_CR2_RSTCAL ((uint32_t)0x00000008)
-// Enable ADC DMA requests
-#define ADC_CR2_DMA ((uint32_t)0x00000100)
-// Disables ADC external trigger
-#define ADC_CR2_NOTRIG ((uint32_t)0x000E0000)
-// Starts software conversion loop
-#define ADC_CR2_SWSTART ((uint32_t)0x00500000)
-// Temperature sensor and reference voltage enable
-#define ADC_CR2_TSVREFE ((uint32_t)0x00800000)
 
 // Mapping defines
 // Remap I2C1 to PB8..PB9
@@ -791,257 +638,6 @@ typedef struct {
 #define AFIO_MAPR_TIM1_REMAP_PARTIAL ((uint32_t)0x00000040)
 // Remap TIM1 fully to Port E
 #define AFIO_MAPR_TIM1_REMAP_FULL ((uint32_t)0x000000C0)
-
-// DAC defines
-// DAC channel 1 enable/disable flag
-#define DAC_CR_EN1 ((uint32_t)0x00000001)
-// DAC channel 1 buffer disable flag
-#define DAC_CR_BOFF1 ((uint32_t)0x00000002)
-// DAC channel 1 trigger enable flag
-#define DAC_CR_TEN1 ((uint32_t)0x00000004)
-// DAC channel 1 DMA enable/disable flag
-#define DAC_CR_DMAEN1 ((uint32_t)0x00001000)
-
-// DMA defines
-// DMA channel enable
-#define DMA_CCR_EN ((uint32_t)0x00000001)
-// Transfer complete interrupt enable
-#define DMA_CCR_TCIE ((uint32_t)0x00000002)
-// Transfer halfway done interrupt enable
-#define DMA_CCR_HTIE ((uint32_t)0x00000004)
-// Peripheral to memory
-#define DMA_CCR_SRC ((uint32_t)0x00000000)
-// Memory to peripheral
-#define DMA_CCR_DST ((uint32_t)0x00000010)
-// Circular mode enable
-#define DMA_CCR_CIRC ((uint32_t)0x00000020)
-// Auto-increment peripheral address
-#define DMA_CCR_PERIPHINC ((uint32_t)0x00000040)
-// Auto-increment memory address
-#define DMA_CCR_MEMINC ((uint32_t)0x00000080)
-// Source size of byte
-#define DMA_CCR_SRC_BYTE ((uint32_t)0x00000000)
-// Source size of halfword
-#define DMA_CCR_SRC_HWORD ((uint32_t)0x00000100)
-// Source size of word
-#define DMA_CCR_SRC_WORD ((uint32_t)0x00000200)
-// Destination size of byte
-#define DMA_CCR_DST_BYTE ((uint32_t)0x00000000)
-// Destination size of halfword
-#define DMA_CCR_DST_HWORD ((uint32_t)0x00000400)
-// Destination size of word
-#define DMA_CCR_DST_WORD ((uint32_t)0x00000800)
-// Low priority transfer
-#define DMA_CCR_PRI_LOW ((uint32_t)0x00000000)
-// Medium priority transfer
-#define DMA_CCR_PRI_MED ((uint32_t)0x00001000)
-// High priority transfer
-#define DMA_CCR_PRI_HIGH ((uint32_t)0x00002000)
-// Very high priority transfer
-#define DMA_CCR_PRI_MAX ((uint32_t)0x00003000)
-// Memory-to-memory?
-#define DMA_CCR_M2M ((uint32_t)0x00004000)
-
-// Global interrupt clear channel 1
-#define DMA_IFCR_CGIF1 ((uint32_t)0x00000001)
-// Transfer complete interrupt clear channel 1
-#define DMA_IFCR_CTCIF1 ((uint32_t)0x00000002)
-// Halfway complete interrupt clear channel 1
-#define DMA_IFCR_CHTIF1 ((uint32_t)0x00000004)
-// Error flag clear channel 1
-#define DMA_IFCR_CTEIF1 ((uint32_t)0x00000008)
-// Global interrupt clear channel 2
-#define DMA_IFCR_CGIF2 ((uint32_t)0x00000010)
-// Transfer complete interrupt clear channel 2
-#define DMA_IFCR_CTCIF2 ((uint32_t)0x00000020)
-// Halfway complete interrupt clear channel 2
-#define DMA_IFCR_CHTIF2 ((uint32_t)0x00000040)
-// Error flag clear channel 2
-#define DMA_IFCR_CTEIF2 ((uint32_t)0x00000080)
-// Global interrupt clear channel 3
-#define DMA_IFCR_CGIF3 ((uint32_t)0x00000100)
-// Transfer complete interrupt clear channel 3
-#define DMA_IFCR_CTCIF3 ((uint32_t)0x00000200)
-// Halfway complete interrupt clear channel 3
-#define DMA_IFCR_CHTIF3 ((uint32_t)0x00000400)
-// Error flag clear channel 3
-#define DMA_IFCR_CTEIF3 ((uint32_t)0x00000800)
-// Global interrupt clear channel 4
-#define DMA_IFCR_CGIF4 ((uint32_t)0x00001000)
-// Transfer complete interrupt clear channel 4
-#define DMA_IFCR_CTCIF4 ((uint32_t)0x00002000)
-// Halfway complete interrupt clear channel 4
-#define DMA_IFCR_CHTIF4 ((uint32_t)0x00004000)
-// Error flag clear channel 4
-#define DMA_IFCR_CTEIF4 ((uint32_t)0x00008000)
-// Global interrupt clear channel 5
-#define DMA_IFCR_CGIF5 ((uint32_t)0x00010000)
-// Transfer complete interrupt clear channel 5
-#define DMA_IFCR_CTCIF5 ((uint32_t)0x00020000)
-// Halfway complete interrupt clear channel 5
-#define DMA_IFCR_CHTIF5 ((uint32_t)0x00040000)
-// Error flag clear channel 5
-#define DMA_IFCR_CTEIF5 ((uint32_t)0x00080000)
-// Global interrupt clear channel 6
-#define DMA_IFCR_CGIF6 ((uint32_t)0x00100000)
-// Transfer complete interrupt clear channel 6
-#define DMA_IFCR_CTCIF6 ((uint32_t)0x00200000)
-// Halfway complete interrupt clear channel 6
-#define DMA_IFCR_CHTIF6 ((uint32_t)0x00400000)
-// Error flag clear channel 6
-#define DMA_IFCR_CTEIF6 ((uint32_t)0x00800000)
-// Global interrupt clear channel 7
-#define DMA_IFCR_CGIF7 ((uint32_t)0x01000000)
-// Transfer complete interrupt clear channel 7
-#define DMA_IFCR_CTCIF7 ((uint32_t)0x02000000)
-// Halfway complete interrupt clear channel 7
-#define DMA_IFCR_CHTIF7 ((uint32_t)0x04000000)
-// Error flag clear channel 7
-#define DMA_IFCR_CTEIF7 ((uint32_t)0x08000000)
-
-// Global interrupt channel 1
-#define DMA_ISR_GIF1 ((uint32_t)0x00000001)
-// Transfer complete interrupt channel 1
-#define DMA_ISR_TCIF1 ((uint32_t)0x00000002)
-// Halfway complete interrupt channel 1
-#define DMA_ISR_HTIF1 ((uint32_t)0x00000004)
-// Error flag channel 1
-#define DMA_ISR_TEIF1 ((uint32_t)0x00000008)
-// Global interrupt channel 2
-#define DMA_ISR_GIF2 ((uint32_t)0x00000010)
-// Transfer complete interrupt channel 2
-#define DMA_ISR_TCIF2 ((uint32_t)0x00000020)
-// Halfway complete interrupt channel 2
-#define DMA_ISR_HTIF2 ((uint32_t)0x00000040)
-// Error flag channel 2
-#define DMA_ISR_TEIF2 ((uint32_t)0x00000080)
-// Global interrupt channel 3
-#define DMA_ISR_GIF3 ((uint32_t)0x00000100)
-// Transfer complete interrupt channel 3
-#define DMA_ISR_TCIF3 ((uint32_t)0x00000200)
-// Halfway complete interrupt channel 3
-#define DMA_ISR_HTIF3 ((uint32_t)0x00000400)
-// Error flag channel 3
-#define DMA_ISR_TEIF3 ((uint32_t)0x00000800)
-// Global interrupt channel 4
-#define DMA_ISR_GIF4 ((uint32_t)0x00001000)
-// Transfer complete interrupt channel 4
-#define DMA_ISR_TCIF4 ((uint32_t)0x00002000)
-// Halfway complete interrupt channel 4
-#define DMA_ISR_HTIF4 ((uint32_t)0x00004000)
-// Error flag channel 4
-#define DMA_ISR_TEIF4 ((uint32_t)0x00008000)
-// Global interrupt channel 5
-#define DMA_ISR_GIF5 ((uint32_t)0x00010000)
-// Transfer complete interrupt channel 5
-#define DMA_ISR_TCIF5 ((uint32_t)0x00020000)
-// Halfway complete interrupt channel 5
-#define DMA_ISR_HTIF5 ((uint32_t)0x00040000)
-// Error flag channel 5
-#define DMA_ISR_TEIF5 ((uint32_t)0x00080000)
-// Global interrupt channel 6
-#define DMA_ISR_GIF6 ((uint32_t)0x00100000)
-// Transfer complete interrupt channel 6
-#define DMA_ISR_TCIF6 ((uint32_t)0x00200000)
-// Halfway complete interrupt channel 6
-#define DMA_ISR_HTIF6 ((uint32_t)0x00400000)
-// Error flag channel 6
-#define DMA_ISR_TEIF6 ((uint32_t)0x00800000)
-// Global interrupt channel 7
-#define DMA_ISR_GIF7 ((uint32_t)0x01000000)
-// Transfer complete interrupt channel 7
-#define DMA_ISR_TCIF7 ((uint32_t)0x02000000)
-// Halfway complete interrupt channel 7
-#define DMA_ISR_HTIF7 ((uint32_t)0x04000000)
-// Error flag channel 7
-#define DMA_ISR_TEIF7 ((uint32_t)0x08000000)
-
-// Flash memory defines
-// Bits for Flash latency cycles
-#define FLASH_ACR_LATENCY ((uint8_t)0x03)
-// Two wait states for Flash access
-#define FLASH_ACR_LATENCY_2 ((uint8_t)0x02)
-// Prefetch buffer enable
-#define FLASH_ACR_PRFTBE ((uint8_t)0x10)
-
-// Flash busy flag
-#define FLASH_SR_BSY ((uint8_t)0x01)
-// Flash programming error flag (write location not 0xFFFF to anything but 0x0000)
-#define FLASH_SR_PGERR ((uint8_t)0x04)
-// Write protection error (write location that is protected)
-#define FLASH_SR_WRPRTERR ((uint8_t)0x10)
-// End-of-operation flag
-#define FLASH_SR_EOP ((uint8_t)0x20)
-
-// Programming mode enable
-#define FLASH_CR_PG ((uint16_t)0x0001)
-// Page erase mode enable
-#define FLASH_CR_PER ((uint16_t)0x0002)
-// Mass erase mode enable
-#define FLASH_CR_MER ((uint16_t)0x0004)
-// Start operation command bit
-#define FLASH_CR_STRT ((uint16_t)0x0040)
-// Lock FLASH command bit
-#define FLASH_CR_LOCK ((uint16_t)0x0080)
-// FLASH Error interrupt enable flag
-#define FLASH_CR_ERRIE ((uint16_t)0x0400)
-// FLASH complete interrupt enable flag
-#define FLASH_CR_EOPIE ((uint16_t)0x1000)
-
-// I2C defines
-// I2C enable
-#define I2C_CR1_PE ((uint16_t)0x0001)
-// Start-bit generation flag
-#define I2C_CR1_START ((uint16_t)0x0100)
-// Stop-bit generation flag
-#define I2C_CR1_STOP ((uint16_t)0x0200)
-// Acknowledge enable flag
-#define I2C_CR1_ACK ((uint16_t)0x0400)
-// Acknowledge position
-#define I2C_CR1_POS ((uint16_t)0x0800)
-// Software reset flag
-#define I2C_CR1_SWRST ((uint16_t)0x8000)
-
-// I2C error interrupt enable
-#define I2C_CR2_ITERREN ((uint16_t)0x0100)
-// I2C event interrupt enable
-#define I2C_CR2_ITEVTEN ((uint16_t)0x0200)
-// I2C buffer interrupt enable
-#define I2C_CR2_ITBUFEN ((uint16_t)0x0400)
-
-// Addressing mode flag
-#define I2C_OAR1_ADDMODE ((uint16_t)0x8000)
-// Dual addressing mode enable
-#define I2C_OAR2_ENDUAL ((uint8_t)0x01)
-
-// Start bit flag
-#define I2C_SR1_SB ((uint16_t)0x0001)
-// Address-sent flag
-#define I2C_SR1_ADDR ((uint16_t)0x0002)
-// Transfer finished flag
-#define I2C_SR1_BTF ((uint16_t)0x0004)
-// Receiver data full flag
-#define I2C_SR1_RXNE ((uint16_t)0x0040)
-// Transmitter data empty flag
-#define I2C_SR1_TXE ((uint16_t)0x0080)
-// Bus error flag
-#define I2C_SR1_BERR ((uint16_t)0x0100)
-// Arbitration lost flag
-#define I2C_SR1_ARLO ((uint16_t)0x0200)
-// Acknowledge failure flag
-#define I2C_SR1_AF ((uint16_t)0x0400)
-// Timeout flag
-#define I2C_SR1_OVR ((uint16_t)0x0800)
-
-// Master/slave flag
-#define I2C_SR2_MSL ((uint16_t)0x0001)
-// Bus busy flag
-#define I2C_SR2_BUSY ((uint16_t)0x0002)
-// Transmitter/receiver flag
-#define I2C_SR2_TRA ((uint16_t)0x0004)
-
-// Fast mode selection
-#define I2C_CCR_FS ((uint16_t)0x8000)
 
 // RCC defines
 // Enable HSE
@@ -1258,30 +854,6 @@ typedef struct {
 // Enable illegal instruction fault handler
 #define SCB_SHCSR_USGFAULTENA ((uint32_t)0x00040000)
 
-// SPI defines
-// CPHA = 1 (even edges)
-#define SPI_CR1_CPHA_1 ((uint16_t)0x0001)
-// CPOL = 1 (active low clock)
-#define SPI_CR1_CPOL_1 ((uint16_t)0x0002)
-// Baud rate 32
-#define SPI_CR1_DIV32 ((uint16_t)0x0020)
-// SPI enable
-#define SPI_CR1_SPE ((uint16_t)0x0040)
-// SPI master mode
-#define SPI_CR1_MSTR ((uint16_t)0x0104)
-// Software slave selection
-#define SPI_CR1_NSS_SOFT ((uint16_t)0x0200)
-// 16-bit data size
-#define SPI_CR1_16BIT ((uint16_t)0x0800)
-
-// Receive buffer full interrupt enable
-#define SPI_CR2_RXNEIE ((uint16_t)0x0040)
-
-// Transmit data empty flag
-#define SPI_SR_TXE ((uint16_t)0x0002)
-// Receive buffer full flag
-#define SPI_SR_RXNE ((uint16_t)0x0001)
-
 // SysTick defines
 // SysTick enable
 #define SysTick_CTRL_ENABLE ((uint32_t)0x00000001)
@@ -1325,47 +897,6 @@ typedef struct {
 #define TIM_SR_CC4IF ((uint16_t)0x0010)
 
 #define TIM_EGR_UG ((uint16_t)0x0001)
-
-// USART defines
-// Read data register full flag
-#define USART_SR_RXNE ((uint16_t)0x0020)
-// Transmit data register empty flag
-#define USART_SR_TXE ((uint16_t)0x0080)
-
-// Reciever enable flag
-#define USART_CR1_RE ((uint16_t)0x0004)
-// Transmitter enable flag
-#define USART_CR1_TE ((uint16_t)0x0008)
-// Receive interrupt enable flag
-#define USART_CR1_RXNEIE ((uint16_t)0x0020)
-// Transmit data register empty interrupt enable flag
-#define USART_CR1_TXEIE ((uint16_t)0x0080)
-// Parity selection
-#define USART_CR1_PS ((uint16_t)0x0200)
-// Parity control
-#define USART_CR1_PCE ((uint16_t)0x0400)
-// Word length flag
-#define USART_CR1_M ((uint16_t)0x1000)
-// USART enable flag
-#define USART_CR1_UE ((uint16_t)0x2000)
-
-// Last bit-clock send flag
-#define USART_CR2_LBCL ((uint16_t)0x0100)
-// Clock phase
-#define USART_CR2_CPHA ((uint16_t)0x0200)
-// Clock polarity
-#define USART_CR2_CPOL ((uint16_t)0x0400)
-// Clock enable
-#define USART_CR2_CLKEN ((uint16_t)0x0800)
-// Stop bit 0
-#define USART_CR2_STOP0 ((uint16_t)0x1000)
-// Stop bit 1
-#define USART_CR2_STOP1 ((uint16_t)0x2000)
-
-// Flow control RTS enable
-#define USART_CR3_RTSE ((uint16_t)0x0100)
-// Flow control CTS enable
-#define USART_CR3_CTSE ((uint16_t)0x0200)
 
 // Disables FAULT interrupts
 static inline void __disable_fault_irq() { asm volatile ("cpsid f"); }

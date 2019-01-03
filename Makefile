@@ -46,6 +46,7 @@ ARCHIVE_TEXT_LIST:=$(subst $(SPACE),$(COMMA),$(notdir $(basename $(wildcard $(FW
 ifndef OUTBIN
 OUTNAME:=output
 endif
+
 OUTBIN:=$(BINDIR)/$(OUTNAME).bin
 OUTELF:=$(BINDIR)/$(OUTNAME).elf
 

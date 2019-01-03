@@ -18,6 +18,7 @@
 #include <limits.h>
 #include <fs.h>
 #include <string.h>
+#include <emulator.h>
 
 #ifndef NO_FILESYSTEM
 
@@ -33,44 +34,29 @@ static INLINE void * _fs_pointer(const uint32_t page) {
  * Enable programming mode for the file system.
  */
 static void _fs_prgm_on() {
-	FLASH->KEYR = 0x45670123;
-	FLASH->KEYR = 0xCDEF89AB;
+	EmuFS_programOn();
 }
 
 /**
  * Disable programming mode for the file system.
  */
 static void _fs_prgm_off() {
-	FLASH->CR = FLASH_CR_LOCK;
+	EmuFS_programOff();
 }
 
 /**
  * Erase a page of memory.
  */
 static void _fs_erase_page(uint32_t page) {
-	FLASH->CR = FLASH_CR_PER;
-	// Select page
-	FLASH->AR = (uint32_t)_fs_pointer(page);
-	// Start operation
-	FLASH->CR = FLASH_CR_PER | FLASH_CR_STRT;
-	// Stall until BSY is reset (there is no sense sleeping here as IRQs cannot run while
-	// the erase is in progress)
-	while (FLASH->SR & FLASH_SR_BSY);
-	// Verify erasure?
+	EmuFS_erasePage(page);
 }
 
 /**
  * Program a (half)word to memory.
  */
 static void _fs_prgm_word(uint32_t page, uint32_t offs, uint16_t value) {
-	FLASH->CR = FLASH_CR_PG;
-	// Ensure offs is even
-	//offs &= ~0x01;
-	// Select address by computing an offset from the desired page
 	uint8_t *addr = (uint8_t*)_fs_pointer(page) + offs;
 	*((uint16_t *)addr) = value;
-	// Stall until BSY is reset
-	while (FLASH->SR & FLASH_SR_BSY);
 }
 
 // Flags for file status

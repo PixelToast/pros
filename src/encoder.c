@@ -153,11 +153,7 @@ void ioClearInterrupt(unsigned char pin) {
 		// Avoid having the OS swap this out
 		_enterCritical();
 		{
-			uint32_t mask = (uint32_t)1 << _pinIndexTable[pin + 1];
-			// Clear pending interrupt
-			EXTI->PR |= mask;
-			// Mask interrupt
-			EXTI->IMR &= ~mask;
+			EmuGPIO_SetInterrupt(pin, 0);
 		}
 		_exitCritical();
 	}
@@ -171,30 +167,10 @@ void ioSetInterrupt(unsigned char pin, unsigned char edges, InterruptHandler han
 		// Avoid having the OS swap this out during init
 		_enterCritical();
 		{
-			// In range, start by masking interrupt if enabled
-			uint32_t mask = (uint32_t)1 << _pinIndexTable[pin + 1], temp;
-			EXTI->IMR &= ~mask;
 			// Configure freely, we won't have an issue here since interrupt is masked
 			Sensor_TypeDef *state = &_sensorState[pin];
 			state->eventTrigger = handler;
-			// Falling edge configuration
-			temp = EXTI->FTSR;
-			if (edges & INTERRUPT_EDGE_FALLING)
-				temp |= mask;
-			else
-				temp &= ~mask;
-			EXTI->FTSR = temp;
-			// Rising edge configuration
-			temp = EXTI->RTSR;
-			if (edges & INTERRUPT_EDGE_RISING)
-				temp |= mask;
-			else
-				temp &= ~mask;
-			EXTI->RTSR = temp;
-			// Clear pending interrupt
-			EXTI->PR |= mask;
-			// Unmask interrupt to start monitoring
-			EXTI->IMR |= mask;
+			EmuGPIO_SetInterrupt(pin, edges);
 		}
 		_exitCritical();
 	}
@@ -207,75 +183,10 @@ static INLINE void triggerEXTI(uint32_t pin) {
 		handler(pin + 1);
 }
 
-// External interrupts all Px0 pins (PD0/Digital 11)
 IRQ ISR_EXTI0() {
-	// We assume that this can only fire if unmasked (therefore, wanted)
-	triggerEXTI(10);
-	EXTI->PR = (uint32_t)0x0001;
+	triggerEXTI(EMULATOR->R1);
 }
 
-// External interrupts all Px1 pins (PD1/Digital 12)
-IRQ ISR_EXTI1() {
-	// We assume that this can only fire if unmasked (therefore, wanted)
-	triggerEXTI(11);
-	EXTI->PR = (uint32_t)0x0002;
-}
-
-// External interrupts all Px5-Px9 pins
-// (PC6/Digital 3, PC7/Digital 4, PE8/Digital 7, PE9/Digital 1)
-IRQ ISR_EXTI9_5() {
-	uint32_t pending = EXTI->PR, reset = 0;
-	if (pending & (uint32_t)0x0040) {
-		// PC6 fired
-		triggerEXTI(2);
-		reset |= (uint32_t)0x0040;
-	}
-	if (pending & (uint32_t)0x0080) {
-		// PC7 fired
-		triggerEXTI(3);
-		reset |= (uint32_t)0x0080;
-	}
-	if (pending & (uint32_t)0x0100) {
-		// PE8 fired
-		triggerEXTI(6);
-		reset |= (uint32_t)0x0100;
-	}
-	if (pending & (uint32_t)0x0200) {
-		// PE9 fired
-		triggerEXTI(0);
-		reset |= (uint32_t)0x0200;
-	}
-	EXTI->PR = reset;
-}
-
-// External interrupts all Px10-Px15 pins
-// (PE10/Digital 8, PE11/Digital 2, PE12/Digital 9, PE13/Digital 5, PE14/Digital 6)
-IRQ ISR_EXTI15_10() {
-	uint32_t pending = EXTI->PR, reset = 0;
-	if (pending & (uint32_t)0x0400) {
-		// PE10 fired
-		triggerEXTI(7);
-		reset |= (uint32_t)0x0400;
-	}
-	if (pending & (uint32_t)0x0800) {
-		// PE11 fired
-		triggerEXTI(1);
-		reset |= (uint32_t)0x0800;
-	}
-	if (pending & (uint32_t)0x1000) {
-		// PE12 fired
-		triggerEXTI(8);
-		reset |= (uint32_t)0x1000;
-	}
-	if (pending & (uint32_t)0x2000) {
-		// PE13 fired
-		triggerEXTI(4);
-		reset |= (uint32_t)0x2000;
-	}
-	if (pending & (uint32_t)0x4000) {
-		// PE14 fired
-		triggerEXTI(5);
-		reset |= (uint32_t)0x4000;
-	}
-	EXTI->PR = reset;
-}
+IRQ ISR_EXTI1() {}
+IRQ ISR_EXTI9_5() {}
+IRQ ISR_EXTI15_10() {}

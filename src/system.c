@@ -16,19 +16,10 @@
 #include <kernel.h>
 #include <periph.h>
 #include <semphr.h>
+#include <emulator.h>
 
 // Low-resolution clock
 volatile uint32_t _clockLowRes;
-
-// Prototype this from motorcontrol.c
-void _motorApply();
-
-// Prototype these from i2c.c
-void _i2cEnd();
-void _i2cInit();
-
-// Prototype this from supervisor.c
-void _svNextByte();
 
 // Prototype this from ultrasonic.c
 void _ultrasonicTimeout();
@@ -56,40 +47,6 @@ static INLINE void intSetPriority(IRQn_Type irq, uint32_t priority) {
 		NVIC->IP[(uint32_t)irq] = (priority << 4) & 0xFF;
 }
 
-// initADC - Initializes the analog converter on the 8 analog sensor pins
-static INLINE void initADC() {
-	uint32_t temp;
-	// Turn the ADC clock on
-	RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;
-	// Reset ADC
-	temp = RCC->APB2RSTR;
-	RCC->APB2RSTR = temp | RCC_APB2RSTR_ADC1RST;
-	__dsb();
-	// Clear reset
-	RCC->APB2RSTR = temp;
-	// Independent ADC, scan mode
-	ADC1->CR1 = ADC_CR1_SCAN;
-	// No external trigger, right-aligned, continuous conversions
-	temp = ADC_CR2_NOTRIG | ADC_CR2_CONT | ADC_CR2_DMA;
-	ADC1->CR2 = temp;
-	// 8 channels, sampling order 0 1 2 3 12 13 10 11
-	adcSetChannels(8, 0, 1, 2, 3, 12, 13, 10, 11);
-	// Set all channels' sampling time to 55.5 cycles
-	ADC1->SMPR1 = (uint32_t)0x00B6DB6D;
-	ADC1->SMPR2 = (uint32_t)0x2DB6DB6D;
-	// ADC on
-	temp |= ADC_CR2_ADON;
-	ADC1->CR2 = temp;
-	// Reset calibration
-	ADC1->CR2 = temp | ADC_CR2_RSTCAL;
-	while (ADC1->CR2 & ADC_CR2_RSTCAL);
-	// Begin calibration
-	ADC1->CR2 = temp | ADC_CR2_CAL;
-	while (ADC1->CR2 & ADC_CR2_CAL);
-	// Start eternal conversion
-	adcOn();
-}
-
 // initClocks - Starts the MCU clocks at the intended speed (72 MHz)
 // No startup timeout is enforced since the entire Cortex will come crashing down if the clocks
 // cannot get to the correct speed; might as well hang. In the future, a "clock monitor fail"
@@ -108,11 +65,7 @@ static INLINE void initClocks() {
 	RCC->CFGR &= ~RCC_CFGR_SW;
 	// Wait for HSE to start up
 	while (!(RCC->CR & RCC_CR_HSERDY));
-	temp = FLASH->ACR;
-	temp &= ~FLASH_ACR_LATENCY;
-	// Prefetch buffer on, 2 wait states (reason for the prefetch buffer)
-	temp |= FLASH_ACR_LATENCY_2 | FLASH_ACR_PRFTBE;
-	FLASH->ACR = temp;
+
 	// APB1 is 36 MHz and APB2 is 72 MHz
 	// ADC clock is 12 MHz (72 MHz / 6)
 	// PLL enabled from HSE = 8 MHz * 9 = 72 MHz
@@ -128,42 +81,6 @@ static INLINE void initClocks() {
 	while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
 	// Reset system clocks
 	_clockLowRes = 0;
-}
-
-// initDAC - Initializes DAC to run the Wave driver
-static INLINE void initDAC() {
-	uint32_t temp;
-	// Turn the DAC clock on
-	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
-	// Reset DAC
-	temp = RCC->APB1RSTR;
-	RCC->APB1RSTR = temp | RCC_APB1RSTR_DACRST;
-	__dsb();
-	// Clear reset
-	RCC->APB1RSTR = temp;
-	// Turn on DAC channel 1 and auto-connect output (in analog mode) PA4, pull from TIM6
-	// (default), enable trigger and DMA
-	DAC->CR = DAC_CR_DMAEN1 | DAC_CR_EN1 | DAC_CR_BOFF1 | DAC_CR_TEN1;
-}
-
-// initDMA - Initializes DMA1 for the ADC and Maple
-static INLINE void initDMA() {
-	// Turn the DMA1 clock on
-	RCC->AHBENR |= RCC_AHBENR_DMA1EN | RCC_AHBENR_DMA2EN;
-	// Transfer from ADC1's DR to the adcDataIn array with a buffer size of 8, no peripheral
-	// address increment, memory address increment, 16 bits at a time, circular mode,
-	// default priority
-	DMA1_Channel1->CCR = DMA_CCR_SRC | DMA_CCR_MEMINC | DMA_CCR_SRC_HWORD | DMA_CCR_DST_HWORD |
-		DMA_CCR_CIRC | DMA_CCR_PRI_HIGH;
-	DMA1_Channel1->CPAR = (uint32_t)(&(ADC1->DR));
-	DMA1_Channel1->CMAR = (uint32_t)(&adcDataIn);
-	// Transfer from the wave array to DAC1's DR with a buffer size of ?, no peripheral
-	// address increment, memory address increment, 16 bits at a time, circular mode, default
-	// priority
-	DMA2_Channel3->CCR = DMA_CCR_DST | DMA_CCR_MEMINC | DMA_CCR_SRC_HWORD | DMA_CCR_DST_HWORD |
-		DMA_CCR_CIRC | DMA_CCR_PRI_HIGH | DMA_CCR_TCIE | DMA_CCR_HTIE;
-	DMA2_Channel3->CPAR = (uint32_t)(&(DAC->DHR12R1));
-	// DMA turned on in the ADC/DAC call
 }
 
 // initEXTI - Initializes the external interrupts
@@ -184,39 +101,6 @@ static INLINE void initEXTI() {
 	EXTI->RTSR = 0;
 	// Clear all pending external interrupts
 	EXTI->PR = (uint32_t)0x0007FFFF;
-}
-
-// initI2C - Initializes the I2C port
-static INLINE void initI2C() {
-	uint32_t temp;
-	// Initialize I2C flags
-	_i2cInit();
-	// Turn the I2C clock on
-	RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
-	// Reset I2C
-	temp = RCC->APB1RSTR;
-	RCC->APB1RSTR = temp | RCC_APB1RSTR_I2C1RST;
-	__dsb();
-	// Clear reset
-	RCC->APB1RSTR = temp;
-	// OFF to configure
-	I2C1->CR1 = I2C_CR1_SWRST;
-	// This delay required for I2C to acknowledge the request
-	for (uint32_t delay = 0; delay < 32; delay++) asm volatile("");
-	I2C1->CR1 = 0;
-	// Set peripheral clock frequency to 36 MHz
-	I2C1->CR2 = (uint16_t)36 | I2C_CR2_ITERREN;
-	// Set I2C clock to 400 KHz (Standard mode)
-	I2C1->CCR = I2C_CCR_FS | ((uint16_t)90);
-	I2C1->TRISE = ((uint16_t)10);
-	// No reset, no error checking, no general call response, disable SMBus mode
-	I2C1->CR1 |= I2C_CR1_PE | I2C_CR1_ACK;
-	// Single-address mode
-	i2cSetAddress(I2C_OWN_ADDR);
-	I2C1->OAR2 &= ~I2C_OAR2_ENDUAL;
-	// Set up GPIOB 8 and 9 [I2C SCL, I2C SDA] as alternate function outputs open-drain
-	ioSetDirection(PIN_I2C1_SCL, DDR_AFO_OD);
-	ioSetDirection(PIN_I2C1_SDA, DDR_AFO_OD);
 }
 
 // initInterrupts - Initializes the NVIC (interrupt system)
@@ -296,48 +180,34 @@ static INLINE void initPorts() {
 	__dsb();
 	// Clear reset
 	RCC->APB2RSTR = temp;
-	// Set up GPIOA 0..4 [Analog 1, 2, 3, 4, SP] as analog inputs
-	ioMultiSetDirection(GPIOA, 0x001F, DDR_INPUT_ANALOG);
-	// Set up GPIOA 5, 7 [SPI1 MOSI, SCK] and 9 as alternate function outputs push-pull
-	ioMultiSetDirection(GPIOA, 0x02A0, DDR_AFO);
-	// Set up GPIOA 10 as a floating input
-	ioSetDirection(GPIOA, 10, DDR_INPUT_FLOATING);
-	// Set up GPIOA 11 as a push-pull output
-	ioSetDirection(GPIOA, 11, DDR_OUTPUT);
-	// All remaining GPIOA pins to pull-up inputs (power consumption)
-	ioMultiSetDirection(GPIOA, 0xF140, DDR_INPUT_PULLUP);
+
+	EmuGPIO_SetDir(PIN_ANALOG_1, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_ANALOG_2, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_ANALOG_3, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_ANALOG_4, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_ANALOG_5, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_ANALOG_6, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_ANALOG_7, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_ANALOG_8, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_ANALOG_9, DDR_INPUT_ANALOG);
+
 	// Turn on GPIOB 8 & 9 [I2C SCL, SDA] pre-emptively
-	ioSetDirection(PIN_I2C1_SCL, DDR_OUTPUT);
-	ioSetDirection(PIN_I2C1_SDA, DDR_OUTPUT);
-	ioSetOutput(PIN_I2C1_SCL, 1);
-	ioSetOutput(PIN_I2C1_SDA, 1);
-	// All remaining GPIOB pins to pull-up inputs (power consumption)
-	ioMultiSetDirection(GPIOB, 0xFCFF, DDR_INPUT_PULLUP);
-	// Set up GPIOC 0..3 [Analog 7, 8, 5, 6] as analog inputs
-	ioMultiSetDirection(GPIOC, 0x000F, DDR_INPUT_ANALOG);
+	EmuGPIO_SetDir(PIN_I2C1_SCL, DDR_OUTPUT);
+	EmuGPIO_SetDir(PIN_I2C1_SDA, DDR_OUTPUT);
+	EmuGPIO_SetOutput(PIN_I2C1_SCL, 1);
+	EmuGPIO_SetOutput(PIN_I2C1_SDA, 1);
+
 	// Set up GPIOC 10 [UART2 TX] as an alternate function output push-pull
-	ioSetDirection(PIN_UART2_TX, DDR_AFO);
+	EmuGPIO_SetDir(PIN_UART2_TX, DDR_AFO);
 	// Set up GPIOC 11 [UART2 RX] as a floating input
-	ioSetDirection(PIN_UART2_RX, DDR_INPUT_FLOATING);
-	// Set up GPIOC 13..15 as input pull-down
-	ioMultiSetDirection(GPIOC, 0xE000, DDR_INPUT_PULLDOWN);
-	// All remaining GPIOC pins to pull-up inputs (power consumption)
-	ioMultiSetDirection(GPIOC, 0x13F0, DDR_INPUT_PULLUP);
+	EmuGPIO_SetDir(PIN_UART2_RX, DDR_INPUT_FLOATING);
+
 	motorControlStop();
 	// Set up GPIOD 5 [UART1 TX] as an alternate function output push-pull
-	ioSetDirection(PIN_UART1_TX, DDR_AFO);
+	EmuGPIO_SetDir(PIN_UART1_TX, DDR_AFO);
 	// Set up GPIOD 6 [UART1 RX] as a floating input
-	ioSetDirection(PIN_UART1_RX, DDR_INPUT_FLOATING);
-	// Set up GPIOD 3, 4, 7, and 8 as push-pull outputs
-	ioMultiSetDirection(GPIOD, 0x0198, DDR_OUTPUT);
-	// Set up GPIOD 12..15 [TIM4 CH1-4] as alternate function outputs push-pull
-	ioMultiSetDirection(GPIOD, 0xF000, DDR_AFO);
-	// All remaining GPIOD pins to pull-up inputs (power consumption)
-	ioMultiSetDirection(GPIOD, 0x0E07, DDR_INPUT_PULLUP);
-	// Set up GPIOE 0, 5, and 6 [SPI handshake?] as push-pull outputs
-	ioMultiSetDirection(GPIOE, 0x0061, DDR_OUTPUT);
-	// All remaining GPIOE pins [including GPIOE 3..4] to pull-up inputs (power consumption)
-	ioMultiSetDirection(GPIOE, 0xFF9E, DDR_INPUT_PULLUP);
+	EmuGPIO_SetDir(PIN_UART1_RX, DDR_INPUT_FLOATING);
+
 	// Remap the following: USART2, USART3, TIM4, I2C1, TIM1
 	AFIO->MAPR = AFIO_MAPR_TIM4_REMAP | AFIO_MAPR_USART2_REMAP | AFIO_MAPR_USART3_REMAP |
 		AFIO_MAPR_I2C1_REMAP | AFIO_MAPR_TIM1_REMAP_FULL;
@@ -347,53 +217,10 @@ static INLINE void initPorts() {
 
 // initSerial - Sets up the USARTs for communication through the UART ports and debug terminal
 static INLINE void initSerial() {
-	uint32_t temp;
 	// Ready the buffers
 	usartBufferInit();
-	// Turn on USART 1, 2 and 3 clocks
-	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
-	RCC->APB1ENR |= RCC_APB1ENR_USART2EN | RCC_APB1ENR_USART3EN;
-	// Reset USART1
-	temp = RCC->APB2RSTR;
-	RCC->APB2RSTR = temp | RCC_APB2RSTR_USART1RST;
-	__dsb();
-	// Clear reset
-	RCC->APB2RSTR = temp;
-	// Reset USART2 and USART3
-	temp = RCC->APB1RSTR;
-	RCC->APB1RSTR = temp | (RCC_APB1RSTR_USART2RST | RCC_APB1RSTR_USART3RST);
-	__dsb();
-	// Clear reset
-	RCC->APB1RSTR = temp;
-	// Default: 8 data bits, no parity, no flow control, one stop bit
-	USART2->CR1 = (uint16_t)0;
-	USART3->CR1 = (uint16_t)0;
-	// 115200 baud on the fast bus = 625, on the slow bus = 308
-	// But they want a weird 230113 baud = 313...
-	USART1->BRR = (uint16_t)313;
-	// Turn on USART1
-	USART1->CR1 = USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
-}
 
-// initSPI - Sets up SPI1 for communication to the master
-static INLINE void initSPI() {
-	uint32_t temp;
-	// Turn on SPI clock
-	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
-	// Reset the SPI
-	temp = RCC->APB2RSTR;
-	RCC->APB2RSTR = temp | RCC_APB2RSTR_SPI1RST;
-	__dsb();
-	// Clear reset
-	RCC->APB2RSTR = temp;
-	// CPOL = 0, CPHA = 1, Master mode, 16-bit data size, Software NSS, divide by 32, MSB first
-	SPI1->CR1 = SPI_CR1_CPHA_1 | SPI_CR1_MSTR | SPI_CR1_16BIT | SPI_CR1_DIV32 | SPI_CR1_SPE |
-		SPI_CR1_NSS_SOFT;
-	// Do not enable the RXNE interrupt here as supervisor is not ready yet
-	// If the interrupt is turned on too soon, it will get serviced the moment that
-	// initInterrupts() calls "cpsie i", which sends garbage to the supervisor and gets a
-	// red code error light.
-	SPI1->CR2 = 0;
+	EmuSerial_init(1, 230113, 0);
 }
 
 // initTimers - Initializes the TIM modules for the desired interrupt frequencies
@@ -471,14 +298,10 @@ void initMCU() {
 	initClocks();
 	initPorts();
 	initEXTI();
-	initSPI();
 	initSerial();
-	initI2C();
 	initTimers();
-	initDMA();
-	initADC();
-	initDAC();
 	initInterrupts();
+	EmuGPIO_ADCInit((uint32_t)adcDataIn);
 }
 
 // ISR_TIM8_CC - Timer 8 capture/compare (microsecond queue)
@@ -487,20 +310,14 @@ void ISR_TIM8_CC() {
 	if (sr & TIM_SR_CC1IF) {
 		// CC1 fired one-time
 		TIM8->DIER &= ~TIM_DIER_CC1IE;
-		// Supervisor
-		_svNextByte();
 	}
 	if (sr & TIM_SR_CC2IF) {
 		// CC2 fired one-time
 		TIM8->DIER &= ~TIM_DIER_CC2IE;
-		// Apply motors
-		_motorApply();
 	}
 	if (sr & TIM_SR_CC3IF) {
 		// CC3 fired one-time
 		TIM8->DIER &= ~TIM_DIER_CC3IE;
-		// I2C timing event
-		_i2cEnd();
 	}
 	if (sr & TIM_SR_CC4IF)
 		// CC4 fired one-time, special handling due to recursive scheduling

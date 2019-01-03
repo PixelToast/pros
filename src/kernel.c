@@ -20,6 +20,7 @@
 #include <supervisor.h>
 #include <taskpriv.h>
 #include <watchdog.h>
+#include <emulator.h>
 
 // Low-resolution clock
 extern volatile uint32_t _clockLowRes;
@@ -27,37 +28,76 @@ extern volatile uint32_t _clockLowRes;
 // libc init functions
 //extern void __libc_init_array();
 
+static const char * const hex = "0123456789ABCDEF";
+static void _fault_dumpInt(const char* prefix, uint32_t num) {
+	while (*prefix != 0) EmuSerial_putc(1, *prefix++);
+	EmuSerial_putc(1, '0');
+	EmuSerial_putc(1, 'x');
+  unsigned char i = 32;
+  while (i) {
+      i -= 4;
+			EmuSerial_putc(1, hex[(num >> i) % 16]);
+  }
+	EmuSerial_putc(1, '\r');
+	EmuSerial_putc(1, '\n');
+}
+
 // Error messages for _exit
 // Since SDIV by 0 is configured not to fault, no divide by 0 can occur here
 static const char * const errorMessages[] = {
 	"Segmentation fault\n", "Segmentation fault\n", "Illegal instruction\n",
 	"Stack overflow\n", "System task failure\n"
 };
+
 static const char * const crashMessage =
 	"\r\nThe VEX Cortex has stopped working!\r\nError cause: ";
 
+uint32_t _fault_dumpPC(int status, volatile uint32_t *faultStack) {
+    __disable_irq();
+    _fault_dumpInt("r0 = ", faultStack[0]);
+    _fault_dumpInt("r1 = ", faultStack[1]);
+    _fault_dumpInt("r2 = ", faultStack[2]);
+    _fault_dumpInt("r3 = ", faultStack[3]);
+    _fault_dumpInt("r12 = ", faultStack[4]);
+    _fault_dumpInt("lr = ", faultStack[5]);
+    _fault_dumpInt("pc = ", faultStack[6]);
+    _fault_dumpInt("psr = ", faultStack[7]);
+
+		char c; char const * buffer = crashMessage;
+
+		// Dump it out over debug USART manually
+		while ((c = *buffer++) != 0) {
+			EmuSerial_putc(1, c);
+		}
+		// Dump message
+		if ((unsigned int)status < 5U) {
+			buffer = errorMessages[status];
+			while ((c = *buffer++) != 0)
+				EmuSerial_putc(1, c);
+		}
+
+    __reset();
+}
+
+// some ASM that calls our _fault_dumpPC function with a pointer to the stack that caused the fault
+static void _fault_test(int status) __attribute__( ( naked ) );
+static void _fault_test(int status) {
+    __asm volatile (
+        " tst lr, #4                                                \n"
+        " ite eq                                                    \n"
+        " mrseq r1, msp                                             \n"
+        " mrsne r1, psp                                             \n"
+        " ldr r2, [r1, #24]                                         \n"
+        " ldr r3, handler2_address_const                            \n"
+        " bx r3                                                     \n"
+        " handler2_address_const: .word _fault_dumpPC               \n"
+    );
+}
+
 // _exit - Exits the program with an error message
 void __attribute__((noreturn)) _exit(int status) {
-	char c; char const * buffer = crashMessage;
-	__disable_irq();
-	// No point in safeRobot(), since no interrupts can run and therefore no
-	// EXTI or SPI interrupts can be used to send state/start user code
-	USART1->CR1 = USART_CR1_UE | USART_CR1_TE | USART_CR1_RE;
-	// Dump it out over debug USART manually
-	while ((c = *buffer++) != 0) {
-		while (!(USART1->SR & USART_SR_TXE));
-		USART1->DR = c;
-	}
-	// Dump message
-	if ((unsigned int)status < 5U) {
-		buffer = errorMessages[status];
-		while ((c = *buffer++) != 0) {
-			while (!(USART1->SR & USART_SR_TXE));
-			USART1->DR = c;
-		}
-	}
-	// Wait for last character
-	while (!(USART1->SR & USART_SR_TXE));
+	_fault_test(status);
+
 	// Reset CPU
 	__reset();
 }
@@ -84,8 +124,6 @@ IRQ ISR_UsageFault() {
 // ISR_SysTick - Interrupt service routine for the SysTick interrupt
 IRQ ISR_SysTick() {
 	_clockLowRes++;
-	if (_clockLowRes % 20 == 0)
-		svStartTransfer();
 	_taskTick();
 }
 

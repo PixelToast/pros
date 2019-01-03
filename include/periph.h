@@ -18,6 +18,7 @@
 #include <cortex.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <emulator.h>
 
 // Begin C++ extern to C
 #ifdef __cplusplus
@@ -55,38 +56,38 @@ extern "C" {
 
 // Pinning definitions for ioSetDirection
 // Digital inputs 1-12
-#define PIN_DIGITAL_1 GPIOE, 9
-#define PIN_DIGITAL_2 GPIOE, 11
-#define PIN_DIGITAL_3 GPIOC, 6
-#define PIN_DIGITAL_4 GPIOC, 7
-#define PIN_DIGITAL_5 GPIOE, 13
-#define PIN_DIGITAL_6 GPIOE, 14
-#define PIN_DIGITAL_7 GPIOE, 8
-#define PIN_DIGITAL_8 GPIOE, 10
-#define PIN_DIGITAL_9 GPIOE, 12
-#define PIN_DIGITAL_10 GPIOE, 7
-#define PIN_DIGITAL_11 GPIOD, 0
-#define PIN_DIGITAL_12 GPIOD, 1
+#define PIN_DIGITAL_1 1
+#define PIN_DIGITAL_2 2
+#define PIN_DIGITAL_3 3
+#define PIN_DIGITAL_4 4
+#define PIN_DIGITAL_5 5
+#define PIN_DIGITAL_6 6
+#define PIN_DIGITAL_7 7
+#define PIN_DIGITAL_8 8
+#define PIN_DIGITAL_9 9
+#define PIN_DIGITAL_10 10
+#define PIN_DIGITAL_11 11
+#define PIN_DIGITAL_12 12
 // Speaker port (NOT 5V tolerant!)
-#define PIN_SP GPIOA, 4
+#define PIN_SP 0
 // Analog inputs 1-8
-#define PIN_ANALOG_1 GPIOA, 0
-#define PIN_ANALOG_2 GPIOA, 1
-#define PIN_ANALOG_3 GPIOA, 2
-#define PIN_ANALOG_4 GPIOA, 3
-#define PIN_ANALOG_5 GPIOC, 2
-#define PIN_ANALOG_6 GPIOC, 3
-#define PIN_ANALOG_7 GPIOC, 0
-#define PIN_ANALOG_8 GPIOC, 1
+#define PIN_ANALOG_1 13
+#define PIN_ANALOG_2 14
+#define PIN_ANALOG_3 15
+#define PIN_ANALOG_4 16
+#define PIN_ANALOG_5 17
+#define PIN_ANALOG_6 18
+#define PIN_ANALOG_7 19
+#define PIN_ANALOG_8 20
 // Analog #9 is on the speaker port (NOT 5V tolerant!)
 #define PIN_ANALOG_9 PIN_SP
 // Communications ports (these pins are NOT 5V tolerant!)
-#define PIN_UART1_TX GPIOD, 5
-#define PIN_UART1_RX GPIOD, 6
-#define PIN_UART2_TX GPIOC, 10
-#define PIN_UART2_RX GPIOC, 11
-#define PIN_I2C1_SCL GPIOB, 8
-#define PIN_I2C1_SDA GPIOB, 9
+#define PIN_UART1_TX 21
+#define PIN_UART1_RX 22
+#define PIN_UART2_TX 23
+#define PIN_UART2_RX 24
+#define PIN_I2C1_SCL 25
+#define PIN_I2C1_SDA 26
 
 // Constants for ioSetInterrupt - Which edges to register interrupt?
 #define INTERRUPT_EDGE_RISING 1
@@ -151,11 +152,6 @@ typedef void * Ultrasonic;
 // Gyro information is stored as an opaque pointer to a structure in memory
 typedef void * Gyro;
 
-// Pin lookup tables
-extern const uint8_t _adcChannelTable[BOARD_NR_ADC_PINS];
-extern const GPIO_TypeDef* const _pinLookupTable[BOARD_NR_GPIO_PINS];
-extern const uint8_t _pinIndexTable[BOARD_NR_GPIO_PINS];
-
 // Sensor status tables
 extern Sensor_TypeDef _sensorState[BOARD_NR_DIGITAL_IO];
 extern Analog_TypeDef _analogState[BOARD_NR_ADC_PINS];
@@ -199,33 +195,7 @@ static INLINE void _highResSchedule(uint8_t channel, uint16_t diff) {
 	}
 }
 
-// ioGetInput - Gets the digital value (1 or 0) of a pin configured as a digital input
-static INLINE bool ioGetInput(GPIO_TypeDef* port, uint32_t pin) {
-	// Shift right that many bits, then mask everything but the ones
-	return ((port->IDR >> (pin & 0x0F)) & 0x01) != 0;
-}
-
-// ioGetOutput - Gets the current value (1 or 0) of a pin configured as a digital output
-static INLINE bool ioGetOutput(GPIO_TypeDef* port, uint32_t pin) {
-	// Shift right that many bits, then mask everything but the ones
-	return ((port->ODR >> (pin & 0x0F)) & 0x01) != 0;
-}
-
-// ioSetOutput - Sets the digital value (1 or 0) of a pin configured as a digital output
-static INLINE void ioSetOutput(GPIO_TypeDef* port, uint32_t pin, bool value) {
-	if (value)
-		// Atomic bit set
-		port->BSRR = ((uint32_t)0x00000001) << (pin & 0x0F);
-	else
-		// Atomic bit reset
-		port->BRR = ((uint32_t)0x00000001) << (pin & 0x0F);
-}
-
 // Library functions
-// adcOff - Stops the ADC, use before reconfiguring
-void adcOff();
-// adcOn - Starts the ADC
-void adcOn();
 // adcRead - Reads a channel 0-15 from the ADC
 uint16_t adcRead(uint32_t channel);
 // adcSetChannels - Sets the channels sampled by the ADC (ADC must be off!)
@@ -281,10 +251,6 @@ void imeShutdown();
 
 // ioClearInterrupt - Disables interrupts on the specified pin
 void ioClearInterrupt(unsigned char pin);
-// ioMultiSetDirection - Configures the specified pins in the bit mask to the given type
-void ioMultiSetDirection(GPIO_TypeDef* port, uint16_t pinMask, uint32_t type);
-// ioSetDirection - Configures the pin as an input or output with a variety of settings
-void ioSetDirection(GPIO_TypeDef* port, uint32_t pin, uint32_t type);
 // ioSetInterrupt - Sets up an interrupt to occur on the specified pin, and resets count & time
 void ioSetInterrupt(unsigned char pin, unsigned char edges, InterruptHandler handler);
 
